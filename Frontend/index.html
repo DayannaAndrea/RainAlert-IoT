@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RainAlert IoT — Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.4/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+
+    <!-- ══ GATITO ══ -->
+    <div id="kitty" title="🐱">
+      <svg id="kittySvg" width="72" height="60" viewBox="0 0 48 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- cuerpo -->
+        <ellipse cx="24" cy="26" rx="13" ry="9" fill="#b0b8c8"/>
+        <!-- cabeza -->
+        <ellipse cx="24" cy="14" rx="10" ry="9" fill="#b0b8c8"/>
+        <!-- orejas -->
+        <polygon points="16,8 13,1 19,6" fill="#b0b8c8"/>
+        <polygon points="32,8 35,1 29,6" fill="#b0b8c8"/>
+        <polygon points="16,7 14,3 18,6" fill="#e8a0a0"/>
+        <polygon points="32,7 34,3 30,6" fill="#e8a0a0"/>
+        <!-- cara -->
+        <ellipse cx="20" cy="13" rx="2.5" ry="2.5" fill="white"/>
+        <ellipse cx="28" cy="13" rx="2.5" ry="2.5" fill="white"/>
+        <circle  cx="20.8" cy="13.5" r="1.4" fill="#3a4a5a" id="pupilL"/>
+        <circle  cx="28.8" cy="13.5" r="1.4" fill="#3a4a5a" id="pupilR"/>
+        <!-- nariz y boca -->
+        <ellipse cx="24" cy="17" rx="1.2" ry="0.8" fill="#e8a0a0"/>
+        <path d="M22.5 17.8 Q24 19.5 25.5 17.8" stroke="#7a6a7a" stroke-width="0.8" fill="none"/>
+        <!-- bigotes -->
+        <line x1="14" y1="16" x2="21" y2="17" stroke="#8a9aaa" stroke-width="0.7" opacity="0.8"/>
+        <line x1="14" y1="18" x2="21" y2="18" stroke="#8a9aaa" stroke-width="0.7" opacity="0.8"/>
+        <line x1="27" y1="17" x2="34" y2="16" stroke="#8a9aaa" stroke-width="0.7" opacity="0.8"/>
+        <line x1="27" y1="18" x2="34" y2="18" stroke="#8a9aaa" stroke-width="0.7" opacity="0.8"/>
+        <!-- cola -->
+        <path id="kittyTail" d="M37 28 Q46 22 44 16" stroke="#b0b8c8" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <!-- patas (4 líneas animadas) -->
+        <line id="pL1" x1="16" y1="33" x2="14" y2="39" stroke="#9098a8" stroke-width="2.5" stroke-linecap="round"/>
+        <line id="pL2" x1="20" y1="34" x2="19" y2="39" stroke="#9098a8" stroke-width="2.5" stroke-linecap="round"/>
+        <line id="pR1" x1="28" y1="34" x2="29" y2="39" stroke="#9098a8" stroke-width="2.5" stroke-linecap="round"/>
+        <line id="pR2" x1="32" y1="33" x2="34" y2="39" stroke="#9098a8" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- ══ ALERTA ══ -->
+    <div class="rain-overlay" id="alertOverlay" onclick="cerrarAlerta()">
+      <div class="rain-bg"></div>
+      <div class="r-lightning"></div>
+      <div class="r-cloud r-cloud-1"></div>
+      <div class="r-cloud r-cloud-2"></div>
+      <div class="r-cloud r-cloud-3"></div>
+      <div class="r-drops" id="rainContainer"></div>
+      <div class="r-text">
+        <div class="r-title">¡AGUACERO!</div>
+        <div class="r-sub" id="alertMsg">Lluvia intensa detectada</div>
+        <div class="r-node" id="alertNode">NODO — ¡RECOGE LA ROPA YA!</div>
+        <div class="r-hint">toca en cualquier parte para cerrar</div>
+      </div>
+      <div class="r-line">
+        <div class="r-rope"></div>
+        <div class="r-cloth" style="left: 4%">
+          <svg width="50" height="58" viewBox="0 0 50 58">
+            <path
+              d="M9 0 L0 13 L9 17 L9 58 L41 58 L41 17 L50 13 L41 0 L31 7 Q25 11 19 7Z"
+              fill="#f87171"
+            />
+            <path d="M9 0 L0 13 L9 17 L9 21 L0 17 L0 13Z" fill="#dc4040" />
+            <path
+              d="M41 0 L50 13 L41 17 L41 21 L50 17 L50 13Z"
+              fill="#dc4040"
+            />
+          </svg>
+        </div>
+        <div class="r-cloth" style="left: 21%; animation-delay: 0.35s">
+          <svg width="42" height="68" viewBox="0 0 42 68">
+            <rect x="1" y="0" width="40" height="28" rx="3" fill="#7dd3fc" />
+            <rect x="1" y="26" width="17" height="42" rx="3" fill="#5ab8e8" />
+            <rect x="24" y="26" width="17" height="42" rx="3" fill="#5ab8e8" />
+            <rect x="1" y="0" width="40" height="5" rx="2" fill="#3a8ab8" />
+          </svg>
+        </div>
+        <div class="r-cloth" style="left: 41%; animation-delay: 0.6s">
+          <svg width="48" height="72" viewBox="0 0 48 72">
+            <path
+              d="M14 0 L4 11 L14 15 L14 28 L4 72 L44 72 L34 28 L34 15 L44 11 L34 0 Q24 7 14 0Z"
+              fill="#6ee7b7"
+            />
+            <path d="M4 72 L14 38 L34 38 L44 72Z" fill="#40c898" />
+          </svg>
+        </div>
+        <div class="r-cloth" style="left: 61%; animation-delay: 0.2s">
+          <svg width="26" height="44" viewBox="0 0 26 44">
+            <rect x="7" y="0" width="12" height="27" rx="4" fill="#fbbf24" />
+            <path
+              d="M7 25 Q3 29 3 35 Q3 43 13 43 Q23 43 23 35 Q23 29 19 25Z"
+              fill="#d4a010"
+            />
+            <rect
+              x="7"
+              y="0"
+              width="12"
+              height="4"
+              rx="2"
+              fill="#fff"
+              opacity="0.3"
+            />
+          </svg>
+        </div>
+        <div class="r-cloth" style="left: 75%; animation-delay: 0.85s">
+          <svg width="52" height="62" viewBox="0 0 52 62">
+            <rect x="0" y="0" width="52" height="62" rx="4" fill="#a78bfa" />
+            <rect x="0" y="0" width="52" height="7" rx="4" fill="#8060e0" />
+            <line
+              x1="0"
+              y1="19"
+              x2="52"
+              y2="19"
+              stroke="#8060e0"
+              stroke-width="1.5"
+            />
+            <line
+              x1="0"
+              y1="33"
+              x2="52"
+              y2="33"
+              stroke="#8060e0"
+              stroke-width="1.5"
+            />
+            <line
+              x1="0"
+              y1="47"
+              x2="52"
+              y2="47"
+              stroke="#8060e0"
+              stroke-width="1.5"
+            />
+          </svg>
+        </div>
+      </div>
+      <div class="r-runner">
+        <div class="r-person">
+          <svg width="60" height="100" viewBox="0 0 60 100" id="runnerSvg">
+            <circle cx="30" cy="12" r="10" fill="#d4a574" />
+            <ellipse cx="30" cy="6" rx="10" ry="5" fill="#3d2010" />
+            <rect x="20" y="22" width="20" height="26" rx="4" fill="#a78bfa" />
+            <line
+              x1="20"
+              y1="28"
+              x2="4"
+              y2="14"
+              stroke="#d4a574"
+              stroke-width="5"
+              stroke-linecap="round"
+            />
+            <line
+              x1="40"
+              y1="28"
+              x2="52"
+              y2="38"
+              stroke="#d4a574"
+              stroke-width="5"
+              stroke-linecap="round"
+            />
+            <line
+              x1="25"
+              y1="48"
+              x2="14"
+              y2="74"
+              stroke="#1e1b2e"
+              stroke-width="6"
+              stroke-linecap="round"
+              id="legL"
+            />
+            <line
+              x1="35"
+              y1="48"
+              x2="48"
+              y2="70"
+              stroke="#1e1b2e"
+              stroke-width="6"
+              stroke-linecap="round"
+              id="legR"
+            />
+            <path d="M1 9 Q4 4 9 7 Q7 13 4 15Z" fill="#f87171" opacity=".9" />
+            <path
+              d="M-1 12 Q2 7 7 10 Q5 16 2 18Z"
+              fill="#7dd3fc"
+              opacity=".9"
+            />
+          </svg>
+        </div>
+      </div>
+      <div class="r-ground">
+        <div class="r-puddle r-puddle-1">
+          <div
+            class="r-ripple"
+            style="
+              width: 28px;
+              height: 10px;
+              top: 6px;
+              left: 50px;
+              animation-delay: 0s;
+            "
+          ></div>
+          <div
+            class="r-ripple"
+            style="
+              width: 28px;
+              height: 10px;
+              top: 6px;
+              left: 50px;
+              animation-delay: 0.8s;
+            "
+          ></div>
+        </div>
+        <div class="r-puddle r-puddle-2">
+          <div
+            class="r-ripple"
+            style="
+              width: 20px;
+              height: 7px;
+              top: 4px;
+              left: 32px;
+              animation-delay: 0.35s;
+            "
+          ></div>
+        </div>
+        <div class="r-puddle r-puddle-3">
+          <div
+            class="r-ripple"
+            style="
+              width: 24px;
+              height: 8px;
+              top: 5px;
+              left: 43px;
+              animation-delay: 0.6s;
+            "
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ HEADER ══ -->
+    <header>
+      <div class="h-left">
+        <div class="logo" id="logoBtn">RA</div>
+        <div>
+          <div class="app-name">RainAlert IoT</div>
+          <div class="app-sub">Monitoreo climático</div>
+        </div>
+      </div>
+      <div class="conn-pill">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Desconectado</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="cfg">
+        <label>BROKER IP</label>
+        <input
+          class="iip"
+          id="brokerIP"
+          value="Rayo.local"
+          onkeydown="if (event.key === 'Enter') event.preventDefault();"
+        />
+        <label>WS PORT</label>
+        <input
+          class="iport"
+          id="brokerPort"
+          value="9001"
+          onkeydown="if (event.key === 'Enter') event.preventDefault();"
+        />
+        <button type="button" class="btn-con" id="btnCon" onclick="conectar()">
+          CONECTAR
+        </button>
+        <button
+          type="button"
+          class="btn-dis"
+          id="btnDis"
+          onclick="desconectar()"
+          style="display: none"
+        >
+          DESCONECTAR
+        </button>
+        <span class="cfg-hint">Mosquitto WebSocket puerto 9001</span>
+      </div>
+
+      <div class="nodes-grid" id="nodesGrid"></div>
+
+      <div class="bottom-row">
+        <div class="chart-card">
+          <div class="chart-head">
+            <div>
+              <div class="chart-ttl">Historial en tiempo real</div>
+              <div class="chart-sub">Últimas 30 lecturas</div>
+            </div>
+            <div class="chart-tabs">
+              <button
+                type="button"
+                class="ctab active"
+                onclick="cambiarGrafica('lluvia', this)"
+              >
+                Lluvia
+              </button>
+              <button
+                type="button"
+                class="ctab"
+                onclick="cambiarGrafica('temperatura', this)"
+              >
+                Temp
+              </button>
+              <button
+                type="button"
+                class="ctab"
+                onclick="cambiarGrafica('humedad', this)"
+              >
+                Humedad
+              </button>
+              <button
+                type="button"
+                class="ctab"
+                onclick="cambiarGrafica('suelo', this)"
+              >
+                Suelo
+              </button>
+              <button
+                type="button"
+                class="ctab"
+                onclick="cambiarGrafica('presion', this)"
+              >
+                Presión
+              </button>
+              <button
+                type="button"
+                class="ctab"
+                onclick="cambiarGrafica('luz', this)"
+              >
+                Luz
+              </button>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+        </div>
+        <div class="log-card">
+          <div class="log-head">
+            <div class="log-ttl">Log MQTT</div>
+            <button type="button" class="btn-clr" onclick="limpiarLog()">
+              LIMPIAR
+            </button>
+          </div>
+          <div class="log-list" id="logList">
+            <div class="log-item">
+              <span class="lt">--:--:--</span
+              ><span class="lp">Esperando conexión...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="./js/app.js"></script>
+  </body>
+</html>
